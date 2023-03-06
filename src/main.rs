@@ -194,6 +194,24 @@ fn main() -> Result<()> {
                                 // - use "Esc" to cancel the edit
                                 // - use "Backspace" to delete a character
                                 // - use "Arrow keys" to move the cursor
+                                let todo = &mut todos[pos.1 as usize - 8];
+
+                                match e {
+                                    KeyCode::Char(c) => {
+                                        todo.text.push(c);
+                                    }
+                                    KeyCode::Backspace => {
+                                        todo.text.pop();
+                                    }
+                                    KeyCode::Enter => {
+                                        state = State::Navigation;
+                                    }
+                                    KeyCode::Esc => {
+                                        state = State::Navigation;
+                                    }
+                                    _ => {}
+                                }
+
                             }
                         }
                     }
