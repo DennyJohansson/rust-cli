@@ -81,7 +81,14 @@ fn render_todos(todos: &Vec<Todo>) -> Result<()> {
     Ok(())
 }
 
+enum State {
+    Navigation,
+    Create,
+    Edit,
+}
+
 fn main() -> Result<()> {
+    let mut state = State::Navigation;
     let mut stdout = stdout();
     let mut todos: Vec<Todo> = vec![
         Todo {
@@ -110,51 +117,92 @@ fn main() -> Result<()> {
 
     loop {
         if poll(Duration::from_millis(100))? {
-
             let pos = position()?;
             match read()? {
+                // we need to know in what state we are running
+                // - if we are navigating the todos
+                // - if we are creating a new todo
+                // - if we are editing a todo
+                //
+                // set global state
+                // match on it
                 Event::Key(event) => match event.code {
-                    KeyCode::Char('k') => {
-                        execute!(stdout, MoveToPreviousLine(1),)?;
-                    }
-                    KeyCode::Char('j') => {
-                        execute!(stdout, MoveToNextLine(1),)?;
-                    }
-                    KeyCode::Char('c') => {
-                        execute!(
-                            stdout,
-                            MoveTo(0, position()?.1),
-                            Clear(ClearType::CurrentLine),
-                            Print("create new todo"),
-                        )?;
-                    }
-                    KeyCode::Char('x') => {
-                        todos.remove(pos.1 as usize - 8);
-                    }
-                    KeyCode::Char('e') => {
-                        execute!(
-                            stdout,
-                            MoveTo(0, position()?.1),
-                            Clear(ClearType::CurrentLine),
-                            Print("edit todo")
-                        )?;
-                    }
-                    KeyCode::Char('t') => {
-                        let todo = &mut todos[pos.1 as usize - 8];
-
-                        todo.toggle();
-                    }
                     KeyCode::Esc => {
                         break;
                     }
-                    _ => {}
+                    e => {
+                        match state {
+                            State::Navigation => {
+                                // navigation
+                                // - use "Arrow keys" to move the cursor
+                                // - use "Esc" to quit
+                                // - use "c" to create new todo
+                                // - use "x" to delete todo at cursor
+                                // - use "e" to edit todo at cursor
+                                // - use "t" to toggle todo at cursor
+
+                                match e {
+                                    KeyCode::Char('k') => {
+                                        execute!(stdout, MoveToPreviousLine(1),)?;
+                                    }
+                                    KeyCode::Char('j') => {
+                                        execute!(stdout, MoveToNextLine(1),)?;
+                                    }
+                                    KeyCode::Char('c') => {
+                                        // create new todo
+                                        // - move cursor to a new line
+                                        // - use "Enter" to save the new todo
+                                        // - use "Esc" to cancel the creation
+                                        // - use "Backspace" to delete a character
+                                        // - use "Arrow keys" to move the cursor
+
+                                        state = State::Create;
+                                    }
+                                    KeyCode::Char('x') => {
+                                        todos.remove(pos.1 as usize - 8);
+                                    }
+                                    KeyCode::Char('e') => {
+                                        // edit todo
+                                        // - edit the todo at the cursor
+                                        // - use "Enter" to save the edited todo
+                                        // - use "Esc" to cancel the edit
+                                        // - use "Backspace" to delete a character
+                                        // - use "Arrow keys" to move the cursor
+
+                                        state = State::Edit;
+                                    }
+                                    KeyCode::Char('t') => {
+                                        let todo = &mut todos[pos.1 as usize - 8];
+
+                                        todo.toggle();
+                                    }
+                                    _ => {}
+                                }
+                            }
+                            State::Create => {
+                                // create new todo
+                                // - move cursor to a new line
+                                // - use "Enter" to save the new todo
+                                // - use "Esc" to cancel the creation
+                                // - use "Backspace" to delete a character
+                                // - use "Arrow keys" to move the cursor
+                            }
+                            State::Edit => {
+                                // edit todo
+                                // - edit the todo at the cursor
+                                // - use "Enter" to save the edited todo
+                                // - use "Esc" to cancel the edit
+                                // - use "Backspace" to delete a character
+                                // - use "Arrow keys" to move the cursor
+                            }
+                        }
+                    }
                 },
                 _ => {}
             }
 
             execute!(stdout, SavePosition)?;
 
-            // render
             render_setup()?;
             render_todos(&todos)?;
 
