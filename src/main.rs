@@ -1,5 +1,5 @@
 use crossterm::cursor::{
-    MoveTo, MoveToNextLine, MoveToPreviousLine, RestorePosition, SavePosition,
+    MoveTo, MoveToNextLine, MoveToPreviousLine, MoveToRow, RestorePosition, SavePosition,
 };
 #[allow(unused)]
 use crossterm::{
@@ -111,7 +111,6 @@ fn main() -> Result<()> {
 
     enable_raw_mode()?;
 
-    // init render, first frame
     render_setup()?;
     render_todos(&todos)?;
 
@@ -119,13 +118,6 @@ fn main() -> Result<()> {
         if poll(Duration::from_millis(100))? {
             let pos = position()?;
             match read()? {
-                // we need to know in what state we are running
-                // - if we are navigating the todos
-                // - if we are creating a new todo
-                // - if we are editing a todo
-                //
-                // set global state
-                // match on it
                 Event::Key(event) => match event.code {
                     KeyCode::Esc => {
                         break;
@@ -133,14 +125,6 @@ fn main() -> Result<()> {
                     e => {
                         match state {
                             State::Navigation => {
-                                // navigation
-                                // - use "Arrow keys" to move the cursor
-                                // - use "Esc" to quit
-                                // - use "c" to create new todo
-                                // - use "x" to delete todo at cursor
-                                // - use "e" to edit todo at cursor
-                                // - use "t" to toggle todo at cursor
-
                                 match e {
                                     KeyCode::Char('k') => {
                                         execute!(stdout, MoveToPreviousLine(1),)?;
@@ -149,26 +133,12 @@ fn main() -> Result<()> {
                                         execute!(stdout, MoveToNextLine(1),)?;
                                     }
                                     KeyCode::Char('c') => {
-                                        // create new todo
-                                        // - move cursor to a new line
-                                        // - use "Enter" to save the new todo
-                                        // - use "Esc" to cancel the creation
-                                        // - use "Backspace" to delete a character
-                                        // - use "Arrow keys" to move the cursor
-
                                         state = State::Create;
                                     }
                                     KeyCode::Char('x') => {
                                         todos.remove(pos.1 as usize - 8);
                                     }
                                     KeyCode::Char('e') => {
-                                        // edit todo
-                                        // - edit the todo at the cursor
-                                        // - use "Enter" to save the edited todo
-                                        // - use "Esc" to cancel the edit
-                                        // - use "Backspace" to delete a character
-                                        // - use "Arrow keys" to move the cursor
-
                                         state = State::Edit;
                                     }
                                     KeyCode::Char('t') => {
@@ -180,20 +150,15 @@ fn main() -> Result<()> {
                                 }
                             }
                             State::Create => {
-                                // create new todo
-                                // - move cursor to a new line
-                                // - use "Enter" to save the new todo
-                                // - use "Esc" to cancel the creation
-                                // - use "Backspace" to delete a character
-                                // - use "Arrow keys" to move the cursor
+                                todos.push(Todo {
+                                    text: "new todo".to_string(),
+                                    completed: false,
+                                });
+
+                                execute!(stdout, MoveToRow(8 + todos.len() as u16))?;
+                                state = State::Edit;
                             }
                             State::Edit => {
-                                // edit todo
-                                // - edit the todo at the cursor
-                                // - use "Enter" to save the edited todo
-                                // - use "Esc" to cancel the edit
-                                // - use "Backspace" to delete a character
-                                // - use "Arrow keys" to move the cursor
                                 let todo = &mut todos[pos.1 as usize - 8];
 
                                 match e {
@@ -211,7 +176,6 @@ fn main() -> Result<()> {
                                     }
                                     _ => {}
                                 }
-
                             }
                         }
                     }
