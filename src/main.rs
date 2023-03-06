@@ -1,4 +1,6 @@
-use crossterm::cursor::{MoveTo, MoveToNextLine, MoveToPreviousLine, SavePosition, RestorePosition};
+use crossterm::cursor::{
+    MoveTo, MoveToNextLine, MoveToPreviousLine, RestorePosition, SavePosition,
+};
 #[allow(unused)]
 use crossterm::{
     cursor::position,
@@ -36,10 +38,7 @@ impl Todo {
     }
 }
 
-fn main() -> Result<()> {
-    enable_raw_mode()?;
-
-    // ---- setup ----
+fn render_setup() -> Result<()> {
     execute!(
         stdout(),
         EnterAlternateScreen,
@@ -47,39 +46,15 @@ fn main() -> Result<()> {
         MoveTo(0, 0),
     )?;
 
-    // ---- render help ----
     for line in HELP.lines() {
         execute!(stdout(), Print(line), MoveToNextLine(1))?;
     }
 
-    // todo list
-    // ---- events ----
-    // - hit "c" to create new todo
-    // - Hit "x" to delete tode at cursor
-    // - Hit "e" to edit todo at cursor
-    // - Hit "t" to toggle todo at cursor
-    // - Use Esc to quit
+    Ok(())
+}
 
+fn render_todos(todos: &Vec<Todo>) -> Result<()> {
     let mut stdout = stdout();
-
-    let mut todos: Vec<Todo> = vec![
-        Todo {
-            text: "Buy milk".to_string(),
-            completed: false,
-        },
-        Todo {
-            text: "Buy eggs".to_string(),
-            completed: true,
-        },
-        Todo {
-            text: "Buy bread".to_string(),
-            completed: false,
-        },
-        Todo {
-            text: "Buy butter".to_string(),
-            completed: true,
-        },
-    ];
 
     for todo in todos.iter() {
         if todo.completed {
@@ -102,10 +77,41 @@ fn main() -> Result<()> {
             )?;
         }
     }
-    // ---- rendering ----
+
+    Ok(())
+}
+
+fn main() -> Result<()> {
+    let mut stdout = stdout();
+    let mut todos: Vec<Todo> = vec![
+        Todo {
+            text: "Buy milk".to_string(),
+            completed: false,
+        },
+        Todo {
+            text: "Buy eggs".to_string(),
+            completed: true,
+        },
+        Todo {
+            text: "Buy bread".to_string(),
+            completed: false,
+        },
+        Todo {
+            text: "Buy butter".to_string(),
+            completed: true,
+        },
+    ];
+
+    enable_raw_mode()?;
+
+    // init render, first frame
+    render_setup()?;
+    render_todos(&todos)?;
+
     loop {
         if poll(Duration::from_millis(100))? {
-            // ---- events ----
+
+            let pos = position()?;
             match read()? {
                 Event::Key(event) => match event.code {
                     KeyCode::Char('k') => {
@@ -123,12 +129,7 @@ fn main() -> Result<()> {
                         )?;
                     }
                     KeyCode::Char('x') => {
-                        execute!(
-                            stdout,
-                            MoveTo(0, position()?.1),
-                            Clear(ClearType::CurrentLine),
-                            Print("delete todo")
-                        )?;
+                        todos.remove(pos.1 as usize - 8);
                     }
                     KeyCode::Char('e') => {
                         execute!(
@@ -139,7 +140,6 @@ fn main() -> Result<()> {
                         )?;
                     }
                     KeyCode::Char('t') => {
-                        let pos = position()?;
                         let todo = &mut todos[pos.1 as usize - 8];
 
                         todo.toggle();
@@ -151,30 +151,12 @@ fn main() -> Result<()> {
                 },
                 _ => {}
             }
-            // render todos
+
             execute!(stdout, SavePosition)?;
-            execute!(stdout, MoveTo(0, 8))?;
-            for todo in todos.iter() {
-                if todo.completed {
-                    execute!(
-                        stdout,
-                        SetForegroundColor(Color::Red),
-                        Print("[x] "),
-                        ResetColor,
-                        Print(&todo.text),
-                        MoveToNextLine(1),
-                    )?;
-                } else {
-                    execute!(
-                        stdout,
-                        SetForegroundColor(Color::Green),
-                        Print("[ ] "),
-                        ResetColor,
-                        Print(&todo.text),
-                        MoveToNextLine(1),
-                    )?;
-                }
-            }
+
+            // render
+            render_setup()?;
+            render_todos(&todos)?;
 
             execute!(stdout, RestorePosition)?;
         }
